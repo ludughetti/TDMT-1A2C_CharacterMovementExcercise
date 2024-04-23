@@ -17,7 +17,7 @@ public class CharacterAnimatorView : MonoBehaviour
     private Vector2 _nextDirection = Vector2.zero;
     private Vector2 _previousDirection = Vector2.zero;
 
-    private void FixedUpdate()
+    private void Update()
     {
         UpdateCurrentDirection();
         SetMovementAnimations();
@@ -30,7 +30,7 @@ public class CharacterAnimatorView : MonoBehaviour
         animator.SetFloat(directionXParam, _currentDirection.x);
         animator.SetFloat(directionZParam, _currentDirection.y);
         animator.SetFloat(horizontalMovSpeedParam, body.GetHorizontalVelocityNormalized());
-        animator.SetBool(jumpParam, !body.GetIsGrounded());
+        animator.SetBool(jumpParam, body.GetIsJumping());
     }
 
     private void UpdateCurrentDirection()
@@ -59,6 +59,7 @@ public class CharacterAnimatorView : MonoBehaviour
      */
     private void SmoothMovementValues()
     {
+
         // Lerp on X depending in which direction we're moving
         if (_nextDirection.x > _previousDirection.x)
         {

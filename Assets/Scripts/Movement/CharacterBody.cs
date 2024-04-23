@@ -13,7 +13,7 @@ public class CharacterBody : MonoBehaviour
 
     [Header("In Air")]
     [SerializeField] private Vector3 groundedOffset = new(0f, 0.001f, 0f);
-    [SerializeField] private float groundCheckDistance = 0.2f;
+    [SerializeField] private float groundCheckDistance = 0.1f;
     [SerializeField] private float gravityScale = 2f;
     [SerializeField] private float jumpHeight = 10f;
     [SerializeField] private float jumpSpeedMultiplier = 0.75f;
@@ -24,19 +24,19 @@ public class CharacterBody : MonoBehaviour
     [SerializeField] private float dragAmountMultiplier = 0.1f;
     [SerializeField] private float maxFloorDistance = 1f;
     [SerializeField] private float maxSlopeAngle = 45;
+    [SerializeField] private LayerMask groundLayer;
 
     private Rigidbody _rigidbody;
     private MovementRequest _currentMovement = MovementRequest.InvalidRequest;
     private bool _isBrakeRequested = false;
     private bool _isGrounded;
-    private bool _landed;
-    private bool _isOnSlope;
-    private bool _isOnUnclimbableSlope;
+    private bool _isJumping = false;
+    private bool _isOnSlope = false;
+    private bool _isOnUnclimbableSlope = false;
     private float _horizontalRotation = 0f;
     private float _maxJumpVelocity = 5f;
     private RaycastHit _slopeHit;
     private Vector3 _rotationSpeed = Vector3.zero;
-    private Vector3 _horizontalVelocityBeforeLanding = Vector3.zero;
 
     private void Start()
     {
@@ -96,9 +96,9 @@ public class CharacterBody : MonoBehaviour
         return rbHorizontalVelocity.normalized.magnitude;
     }
 
-    public bool GetIsGrounded()
+    public bool GetIsJumping()
     {
-        return _isGrounded;
+        return _isJumping;
     }
 
     // Check if all dependencies are properly set in the UI
@@ -150,25 +150,26 @@ public class CharacterBody : MonoBehaviour
             return;
         }
 
-        if (_landed)
-        {
-            _rigidbody.velocity = _horizontalVelocityBeforeLanding;
-            _landed = false;
-        }
-
         /* Multiply input.x by transform.right to move on x axis and input.y by transform.forward to move on z axis */
-        Vector3 directionVector = (_currentMovement.Direction.x * transform.right + _currentMovement.Direction.z * transform.forward)
-            * _currentMovement.Acceleration * GetMovementDragMultiplier();
+        Vector3 directionVector = _currentMovement.Direction.x * transform.right + _currentMovement.Direction.z * transform.forward;
 
         if (IsOnSlope(directionVector - transform.up))
         {
-            directionVector = Vector3.ProjectOnPlane(directionVector, _slopeHit.normal);
+            var slopeRotation = Quaternion.FromToRotation(Vector3.up, _slopeHit.normal);
+            var adjustedDirection = slopeRotation * directionVector;
+
+            Debug.Log($"{name}: slopeRotation is {slopeRotation}, adjustedDirection is {adjustedDirection}");
+            
+            _rigidbody.AddForce(adjustedDirection);
+
+            if (adjustedDirection.y < 0f)
+                directionVector = adjustedDirection;
         }
 
         directionVector.y = 0f;
 
         if(!_isOnSlope || !_isOnUnclimbableSlope)
-            _rigidbody.AddForce(directionVector, ForceMode.Force);
+            _rigidbody.AddForce(directionVector * _currentMovement.Acceleration * GetMovementDragMultiplier(), ForceMode.Force);
     }
 
     private bool IsOnSlope(Vector3 directionVector)
@@ -192,20 +193,19 @@ public class CharacterBody : MonoBehaviour
 
     public void Jump()
     {
-        if (_isGrounded)
+        Debug.Log("Entered Jump");
+        if (_isGrounded && !_isJumping)
         {
-            _isGrounded = false;
+            _isJumping = true;
 
             float clampHorizontalVelocity = Mathf.Clamp(_rigidbody.velocity.magnitude, 0f, _maxJumpVelocity);
             Vector3 horizontalVelocity = new(0f, clampHorizontalVelocity, 0f);
-            Debug.Log($"{name}: horizontalVelocity is {horizontalVelocity}");
             _rigidbody.AddForce(jumpHeight * jumpSpeedMultiplier * Vector3.up + horizontalVelocity, 
                 ForceMode.Impulse);
             Debug.Log($"{name}: Jump executed");
         }
     }
-     
-    // TODO: Maybe it'd be better to have a method running in FixedUpdate to check frame Physics?
+    
     private float GetMovementDragMultiplier()
     {
         return _isGrounded ? 1f : dragAmountMultiplier;
@@ -213,16 +213,20 @@ public class CharacterBody : MonoBehaviour
 
     private void DoGroundCheck()
     {
-        var horizontalVelocity = new Vector3(_rigidbody.velocity.x, 0f, _rigidbody.velocity.z);
-        var grounded = _isGrounded;
-        _isGrounded = Physics.Raycast(transform.position + groundedOffset, Vector3.down, groundCheckDistance);
+        Debug.Log("Entered DoGroundCheck");
+        var wasInAirBefore = !_isGrounded;
 
-        if (!grounded && _isGrounded)
-        {
-            _landed = true;
-            _horizontalVelocityBeforeLanding = horizontalVelocity;
-        }
+        var isOnGroundLayer = Physics.CheckSphere(transform.position + groundedOffset, groundCheckDistance, groundLayer);
 
-        Debug.Log($"{name}: GroundCheck returned {_isGrounded}, _rigidbody.velocity is {horizontalVelocity.magnitude}");
+        if (isOnGroundLayer)
+            _isGrounded = isOnGroundLayer;
+        else
+            _isGrounded = Physics.Raycast(transform.position + groundedOffset, Vector3.down, groundCheckDistance);
+
+        Debug.Log($"{name}: _isGrounded is {_isGrounded}, _isJumping is {_isJumping}, wasGroundedBefore is {wasInAirBefore}");
+
+        // Reset _isJumping if character has landed
+        if(wasInAirBefore && _isGrounded && _isJumping)
+            _isJumping = false;
     }
 }
