@@ -20,32 +20,28 @@ public class CharacterAnimatorView : MonoBehaviour
 
     private void Update()
     {
-        UpdateCurrentDirection();
+        SmoothMovementValues();
         SetMovementAnimations();
     }
 
     private void SetMovementAnimations()
     {
-        SmoothMovementValues();
-
         animator.SetFloat(directionXParam, _currentDirection.x);
         animator.SetFloat(directionZParam, _currentDirection.y);
         animator.SetFloat(horizontalMovSpeedParam, body.GetHorizontalVelocityNormalized());
         animator.SetFloat(slopeAngleParam, body.GetDescendingSlopeAngle());
         animator.SetBool(jumpParam, body.GetIsJumping());
-        animator.SetBool(jumpParam, body.GetIsJumping());
-    }
-
-    private void UpdateCurrentDirection()
-    {
-        Vector3 direction = body.GetMovement().Direction;
-        _currentDirection.x = direction.x;
-        _currentDirection.y = direction.z;
     }
 
     public void SetMovementDirection(Vector2 input)
     {
         _nextDirection = input;
+    }
+
+    private void UpdateCurrentDirection()
+    {
+        if (body.HasHorizontalMovement())
+            _nextDirection = Vector2.zero;
     }
 
     /*
@@ -93,6 +89,6 @@ public class CharacterAnimatorView : MonoBehaviour
             _currentDirection.y = Mathf.Clamp(_currentDirection.y, _nextDirection.y, _previousDirection.y);
             if (_currentDirection.y <= _nextDirection.y)
                 _previousDirection.y = _nextDirection.y;
-        }  
+        }
     }
 }

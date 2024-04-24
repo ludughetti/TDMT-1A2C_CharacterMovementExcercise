@@ -73,9 +73,13 @@ public class CharacterBody : MonoBehaviour
         _rigidbody = GetComponent<Rigidbody>();
     }
 
-    public MovementRequest GetMovement()
+    public bool HasHorizontalMovement()
     {
-        return _currentMovement;
+        var horizontalVelocity = _rigidbody.velocity;
+        horizontalVelocity.y = 0f;
+
+        Debug.Log($"{name}: horizontalVelocity is {horizontalVelocity}");
+        return !Vector3.zero.Equals(horizontalVelocity);
     }
 
     public void SetMovement(MovementRequest movementRequest)
@@ -108,7 +112,6 @@ public class CharacterBody : MonoBehaviour
     public float GetDescendingSlopeAngle()
     {
         // Return negative slope angle if character is descending from the slope
-        Debug.Log($"_rigidbody.velocity.y is {_rigidbody.velocity.y}");
         return _rigidbody.velocity.y < slopeThresholdForSlide ? -_slopeAngle : _slopeAngle;
     }
 
@@ -131,13 +134,9 @@ public class CharacterBody : MonoBehaviour
 
         // Adjust drag depending on if character is grounded or not
         if (_isGrounded)
-        {
             _rigidbody.drag = dragAmount;
-        }
         else
-        {
             _rigidbody.drag = 0f;
-        }
 
         if (_isOnSlope && _isGrounded)
             _rigidbody.useGravity = false;
