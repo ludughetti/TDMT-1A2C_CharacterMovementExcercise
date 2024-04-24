@@ -23,8 +23,11 @@ public class CharacterBody : MonoBehaviour
     [SerializeField] private float dragAmount = 3.5f;
     [SerializeField] private float dragAmountMultiplier = 0.1f;
     [SerializeField] private float maxFloorDistance = 1f;
-    [SerializeField] private float maxSlopeAngle = 45;
     [SerializeField] private LayerMask groundLayer;
+
+    [Header("Slope")]
+    [SerializeField] private float maxSlopeAngle = 45;
+    [SerializeField] private float slopeThresholdForSlide = -3f;
 
     private Rigidbody _rigidbody;
     private MovementRequest _currentMovement = MovementRequest.InvalidRequest;
@@ -35,6 +38,7 @@ public class CharacterBody : MonoBehaviour
     private bool _isOnUnclimbableSlope = false;
     private float _horizontalRotation = 0f;
     private float _maxJumpVelocity = 5f;
+    private float _slopeAngle = 0f;
     private RaycastHit _slopeHit;
     private Vector3 _rotationSpeed = Vector3.zero;
 
@@ -101,6 +105,13 @@ public class CharacterBody : MonoBehaviour
         return _isJumping;
     }
 
+    public float GetDescendingSlopeAngle()
+    {
+        // Return negative slope angle if character is descending from the slope
+        Debug.Log($"_rigidbody.velocity.y is {_rigidbody.velocity.y}");
+        return _rigidbody.velocity.y < slopeThresholdForSlide ? -_slopeAngle : _slopeAngle;
+    }
+
     // Check if all dependencies are properly set in the UI
     private bool AreAllComponentsAssigned()
     {
@@ -146,7 +157,6 @@ public class CharacterBody : MonoBehaviour
         Vector3 horizontalVelocity = new(_rigidbody.velocity.x, 0f, _rigidbody.velocity.z);
         if (!_currentMovement.IsValid() || horizontalVelocity.magnitude >= _currentMovement.GoalSpeed)
         {
-            Debug.Log($"{name}: MoveBody return happened, horizontalVelocity.magnitude is {horizontalVelocity.magnitude}");
             return;
         }
 
@@ -157,8 +167,6 @@ public class CharacterBody : MonoBehaviour
         {
             var slopeRotation = Quaternion.FromToRotation(Vector3.up, _slopeHit.normal);
             var adjustedDirection = slopeRotation * directionVector;
-
-            Debug.Log($"{name}: slopeRotation is {slopeRotation}, adjustedDirection is {adjustedDirection}");
             
             _rigidbody.AddForce(adjustedDirection);
 
@@ -176,9 +184,9 @@ public class CharacterBody : MonoBehaviour
     {
         if (Physics.Raycast(transform.position, directionVector - transform.up, out _slopeHit, maxFloorDistance))
         {
-            float angle = Vector3.Angle(Vector3.up, _slopeHit.normal);
-            _isOnSlope = angle != 0f;
-            _isOnUnclimbableSlope = angle > maxSlopeAngle;
+            _slopeAngle = Vector3.Angle(Vector3.up, _slopeHit.normal);
+            _isOnSlope = _slopeAngle != 0f;
+            _isOnUnclimbableSlope = _slopeAngle > maxSlopeAngle;
         }
 
         return _isOnSlope && !_isOnUnclimbableSlope;
@@ -193,7 +201,6 @@ public class CharacterBody : MonoBehaviour
 
     public void Jump()
     {
-        Debug.Log("Entered Jump");
         if (_isGrounded && !_isJumping)
         {
             _isJumping = true;
@@ -213,7 +220,6 @@ public class CharacterBody : MonoBehaviour
 
     private void DoGroundCheck()
     {
-        Debug.Log("Entered DoGroundCheck");
         var wasInAirBefore = !_isGrounded;
 
         var isOnGroundLayer = Physics.CheckSphere(transform.position + groundedOffset, groundCheckDistance, groundLayer);
@@ -222,8 +228,6 @@ public class CharacterBody : MonoBehaviour
             _isGrounded = isOnGroundLayer;
         else
             _isGrounded = Physics.Raycast(transform.position + groundedOffset, Vector3.down, groundCheckDistance);
-
-        Debug.Log($"{name}: _isGrounded is {_isGrounded}, _isJumping is {_isJumping}, wasGroundedBefore is {wasInAirBefore}");
 
         // Reset _isJumping if character has landed
         if(wasInAirBefore && _isGrounded && _isJumping)

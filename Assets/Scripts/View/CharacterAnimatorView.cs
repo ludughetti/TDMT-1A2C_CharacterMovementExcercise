@@ -12,6 +12,7 @@ public class CharacterAnimatorView : MonoBehaviour
     [SerializeField] private string directionZParam = "dir_z";
     [SerializeField] private string horizontalMovSpeedParam = "move_speed";
     [SerializeField] private string jumpParam = "is_jump";
+    [SerializeField] private string slopeAngleParam = "slope_angle";
 
     private Vector2 _currentDirection = Vector2.zero;
     private Vector2 _nextDirection = Vector2.zero;
@@ -30,6 +31,8 @@ public class CharacterAnimatorView : MonoBehaviour
         animator.SetFloat(directionXParam, _currentDirection.x);
         animator.SetFloat(directionZParam, _currentDirection.y);
         animator.SetFloat(horizontalMovSpeedParam, body.GetHorizontalVelocityNormalized());
+        animator.SetFloat(slopeAngleParam, body.GetDescendingSlopeAngle());
+        animator.SetBool(jumpParam, body.GetIsJumping());
         animator.SetBool(jumpParam, body.GetIsJumping());
     }
 

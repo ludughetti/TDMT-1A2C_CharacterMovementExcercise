@@ -60,7 +60,6 @@ public class CharacterBrain : MonoBehaviour
 
         _desiredDirection = new Vector3(input.x, 0f, input.y);
         body.SetMovement(new MovementRequest(_desiredDirection, GetSpeedByDirection(input), GetAccelerationByDirection(input)));
-        //view.SetMovementDirection(input);
     }
 
     private void HandleCameraInput(Vector2 input)
